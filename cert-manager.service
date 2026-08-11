@@ -1,0 +1,21 @@
+[Unit]
+Description=Cert Manager — Deploy de certificados SSL
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/cert-manager
+EnvironmentFile=/opt/cert-manager/.env
+ExecStart=/opt/cert-manager/venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:5000 \
+    --timeout 120 \
+    --access-logfile /var/log/cert-manager/access.log \
+    --error-logfile /var/log/cert-manager/error.log \
+    run:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

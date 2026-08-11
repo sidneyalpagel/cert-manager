@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Servidores{% endblock %}
+{% block page_title %}Servidores{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('servidores.novo') }}" class="btn btn-primary">+ Novo servidor</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Hostname</th><th>Tipo</th><th>Usuário SSH</th>
+        <th>Diretório</th><th>Cmd pós-deploy</th>
+        <th>Último deploy</th><th>Status</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in servers %}
+      {% set s = item.server %}
+      {% set last = item.last_deploy %}
+      <tr>
+        <td>
+          <strong>{{ s.hostname }}</strong>
+          {% if s.ip %}<br><span style="font-size:11px; color:#888780">{{ s.ip }}</span>{% endif %}
+        </td>
+        <td><span class="badge badge-{{ s.type }}">{{ 'Zimbra' if s.type == 'zimbra' else 'Web' }}</span></td>
+        <td style="font-family:monospace; font-size:12px">{{ s.ssh_user }}:{{ s.ssh_port }}</td>
+        <td style="font-family:monospace; font-size:11px; color:#888780">{{ s.cert_dest_dir }}</td>
+        <td style="font-family:monospace; font-size:11px; color:#888780">{{ s.post_deploy_cmd or '—' }}</td>
+        <td style="font-size:12px; color:#888780">
+          {% if last %}{{ last.started_at[:16].replace('T', ' ') }}{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if last %}
+            <span class="badge badge-{{ 'ok' if last.status == 'success' else 'err' if last.status == 'error' else 'run' }}">
+              {{ 'OK' if last.status == 'success' else 'Falha' if last.status == 'error' else 'Rodando' }}
+            </span>
+          {% else %}<span style="color:#888780">—</span>{% endif %}
+        </td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-sm" onclick="testar({{ s.id }}, this)">Testar SSH</button>
+          <a href="{{ url_for('servidores.editar', server_id=s.id) }}" class="btn btn-sm">Editar</a>
+          <form method="post" action="{{ url_for('servidores.remover', server_id=s.id) }}"
+                style="display:inline" onsubmit="return confirm('Remover {{ s.hostname }}?')">
+            <button class="btn btn-sm btn-danger" type="submit">Remover</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div id="ssh-result" style="display:none" class="alert"></div>
+
+<script>
+async function testar(id, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  const r = await fetch('/servidores/' + id + '/testar', {method:'POST'});
+  const j = await r.json();
+  const el = document.getElementById('ssh-result');
+  el.textContent = j.msg;
+  el.className = 'alert ' + (j.ok ? 'alert-success' : 'alert-error');
+  el.style.display = 'block';
+  btn.disabled = false;
+  btn.textContent = 'Testar SSH';
+}
+</script>
+{% endblock %}

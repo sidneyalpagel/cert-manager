@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Log #{{ log.id }}{% endblock %}
+{% block page_title %}Log de deploy — {{ log.server_hostname }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:14px">
+  <a href="{{ url_for('logs.index') }}" class="btn btn-sm">← Voltar</a>
+</div>
+
+<div class="card" style="max-width:800px">
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #f1efe8">
+    <div>
+      <div style="font-size:11px; color:#888780; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px">Servidor</div>
+      <strong>{{ log.server_hostname }}</strong>
+    </div>
+    <div>
+      <div style="font-size:11px; color:#888780; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px">Trigger</div>
+      <span class="badge {{ 'badge-zimbra' if log.trigger == 'auto' else 'badge-web' }}">
+        {{ 'Automático' if log.trigger == 'auto' else 'Manual' }}
+      </span>
+    </div>
+    <div>
+      <div style="font-size:11px; color:#888780; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px">Iniciado em</div>
+      <span style="font-size:13px">{{ log.started_at[:16].replace('T', ' ') if log.started_at else '—' }}</span>
+    </div>
+    <div>
+      <div style="font-size:11px; color:#888780; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px">Status</div>
+      <span class="badge badge-{{ 'ok' if log.status == 'success' else 'err' if log.status == 'error' else 'run' }}">
+        {{ 'Sucesso' if log.status == 'success' else 'Falha' if log.status == 'error' else 'Rodando' }}
+      </span>
+    </div>
+  </div>
+
+  <div class="card-title">Saída do deploy</div>
+  <div class="log-output">{{ log.output or '(sem saída registrada)' }}</div>
+</div>
+{% endblock %}

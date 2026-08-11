@@ -1,0 +1,154 @@
+import subprocess
+import os
+from datetime import datetime
+
+def run_cmd(cmd, timeout=60):
+    """Executa comando local e retorna (returncode, stdout+stderr)."""
+    try:
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True,
+            text=True, timeout=timeout
+        )
+        output = result.stdout + result.stderr
+        return result.returncode, output
+    except subprocess.TimeoutExpired:
+        return 1, f'Timeout após {timeout}s'
+    except Exception as e:
+        return 1, str(e)
+
+def deploy_web(server, settings):
+    """Deploy para servidor web: rsync + comando pós-deploy."""
+    lines = []
+    hostname = server['hostname']
+    ssh_user = server['ssh_user']
+    ssh_port = server['ssh_port']
+    cert_dest = server['cert_dest_dir']
+    post_cmd = server['post_deploy_cmd'] or 'systemctl reload apache2'
+    ssh_key = settings.get('ssh_key_path', '/root/.ssh/id_certbot')
+    cert_dir = os.path.join(
+        settings.get('cert_base_dir', '/etc/letsencrypt/live'),
+        settings.get('cert_domain', 'santahelena.pr.gov.br')
+    )
+    timeout = int(settings.get('ssh_timeout', '30'))
+
+    ssh_opts = (
+        f'-i {ssh_key} -p {ssh_port} '
+        f'-o StrictHostKeyChecking=no '
+        f'-o ConnectTimeout={timeout}'
+    )
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Iniciando deploy em {hostname}')
+
+    # rsync dos certificados
+    rsync_cmd = (
+        f'rsync -az --delete '
+        f'-e "ssh {ssh_opts}" '
+        f'{cert_dir}/ {ssh_user}@{hostname}:{cert_dest}/'
+    )
+    lines.append(f'[{datetime.now():%H:%M:%S}] rsync {cert_dir}/ → {cert_dest}/')
+    rc, out = run_cmd(rsync_cmd, timeout=60)
+    lines.append(out.strip())
+    if rc != 0:
+        lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no rsync (rc={rc})')
+        return False, '\n'.join(lines)
+
+    # Ajuste de permissões
+    perm_cmd = (
+        f'ssh {ssh_opts} {ssh_user}@{hostname} '
+        f'"chmod 600 {cert_dest}/privkey.pem"'
+    )
+    rc, out = run_cmd(perm_cmd, timeout=timeout)
+    if out.strip():
+        lines.append(out.strip())
+
+    # Comando pós-deploy (reload do serviço)
+    lines.append(f'[{datetime.now():%H:%M:%S}] Executando: {post_cmd}')
+    reload_cmd = f'ssh {ssh_opts} {ssh_user}@{hostname} "{post_cmd}"'
+    rc, out = run_cmd(reload_cmd, timeout=timeout)
+    lines.append(out.strip())
+    if rc != 0:
+        lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no pós-deploy (rc={rc})')
+        return False, '\n'.join(lines)
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Deploy concluído com sucesso')
+    return True, '\n'.join(lines)
+
+def deploy_zimbra(server, settings):
+    """Deploy para servidor Zimbra: rsync + zmcertmgr + restart serviços."""
+    lines = []
+    hostname = server['hostname']
+    ssh_user = server['ssh_user']
+    ssh_port = server['ssh_port']
+    zimbra_dir = server['cert_dest_dir'] or '/opt/zimbra/ssl/letsencrypt'
+    ssh_key = settings.get('ssh_key_path', '/root/.ssh/id_certbot')
+    cert_dir = os.path.join(
+        settings.get('cert_base_dir', '/etc/letsencrypt/live'),
+        settings.get('cert_domain', 'santahelena.pr.gov.br')
+    )
+    timeout = int(settings.get('ssh_timeout', '30'))
+
+    ssh_opts = (
+        f'-i {ssh_key} -p {ssh_port} '
+        f'-o StrictHostKeyChecking=no '
+        f'-o ConnectTimeout={timeout}'
+    )
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Iniciando deploy Zimbra em {hostname}')
+
+    # rsync dos certificados
+    rsync_cmd = (
+        f'rsync -az --delete '
+        f'-e "ssh {ssh_opts}" '
+        f'{cert_dir}/ {ssh_user}@{hostname}:{zimbra_dir}/'
+    )
+    lines.append(f'[{datetime.now():%H:%M:%S}] rsync → {zimbra_dir}/')
+    rc, out = run_cmd(rsync_cmd, timeout=60)
+    lines.append(out.strip())
+    if rc != 0:
+        lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no rsync (rc={rc})')
+        return False, '\n'.join(lines)
+
+    # Script remoto completo do Zimbra
+    zimbra_script = f"""
+set -e
+ZDIR="{zimbra_dir}"
+cat $ZDIR/cert.pem $ZDIR/chain.pem > $ZDIR/zimbra.crt
+if [ ! -f "$ZDIR/ca.crt" ]; then
+    curl -s https://letsencrypt.org/certs/isrgrootx1.pem -o "$ZDIR/ca.crt"
+fi
+chown -R zimbra:zimbra $ZDIR
+chmod 600 $ZDIR/privkey.pem
+sudo -u zimbra /opt/zimbra/bin/zmcertmgr verifycrt comm $ZDIR/privkey.pem $ZDIR/zimbra.crt $ZDIR/ca.crt
+sudo -u zimbra /opt/zimbra/bin/zmcertmgr deploycrt comm $ZDIR/zimbra.crt $ZDIR/ca.crt
+sudo -u zimbra /opt/zimbra/bin/zmproxyctl restart
+sudo -u zimbra /opt/zimbra/bin/zmmailboxdctl restart
+echo "Zimbra deploy OK"
+"""
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Executando zmcertmgr + restart serviços')
+    remote_cmd = f"ssh {ssh_opts} {ssh_user}@{hostname} 'bash -s' << 'ENDSSH'\n{zimbra_script}\nENDSSH"
+    rc, out = run_cmd(remote_cmd, timeout=300)
+    lines.append(out.strip())
+    if rc != 0:
+        lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no deploy Zimbra (rc={rc})')
+        return False, '\n'.join(lines)
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Deploy Zimbra concluído com sucesso')
+    return True, '\n'.join(lines)
+
+def test_ssh_connection(server, settings):
+    """Testa conectividade SSH com um servidor."""
+    hostname = server['hostname']
+    ssh_user = server['ssh_user']
+    ssh_port = server['ssh_port']
+    ssh_key = settings.get('ssh_key_path', '/root/.ssh/id_certbot')
+    timeout = int(settings.get('ssh_timeout', '30'))
+
+    ssh_opts = (
+        f'-i {ssh_key} -p {ssh_port} '
+        f'-o StrictHostKeyChecking=no '
+        f'-o ConnectTimeout={timeout}'
+    )
+    cmd = f'ssh {ssh_opts} {ssh_user}@{hostname} "echo OK"'
+    rc, out = run_cmd(cmd, timeout=timeout + 5)
+    return rc == 0, out.strip()

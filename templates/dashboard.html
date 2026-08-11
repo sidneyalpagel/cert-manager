@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="deployAll()" id="btn-deploy">
+  ▶ Deploy em todos
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-label">Certificado válido por</div>
+    {% if cert_days is not none %}
+      <div class="metric-val {{ 'err' if cert_days < 14 else 'warn' if cert_days < 30 else 'ok' }}">
+        {{ cert_days }} dias
+      </div>
+    {% else %}
+      <div class="metric-val neutral">—</div>
+    {% endif %}
+  </div>
+  <div class="metric">
+    <div class="metric-label">Servidores ativos</div>
+    <div class="metric-val neutral">{{ servers | length }}</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Último deploy</div>
+    {% set last = recent_logs[0] if recent_logs else none %}
+    <div class="metric-val {{ 'ok' if last and last.status == 'success' else 'err' if last else 'neutral' }}"
+         style="font-size:15px; margin-top:6px">
+      {% if last %}{{ last.started_at[:16].replace('T', ' ') }}{% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Falhas (7 dias)</div>
+    <div class="metric-val {{ 'err' if failures > 0 else 'ok' }}">{{ failures }}</div>
+  </div>
+</div>
+
+<div id="deploy-msg" style="display:none" class="alert alert-info"></div>
+
+<div class="card">
+  <div class="card-title">Status dos servidores</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Servidor</th>
+        <th>Tipo</th>
+        <th>Último deploy</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in servers %}
+      {% set s = item.server %}
+      {% set last = item.last_deploy %}
+      <tr>
+        <td>
+          <strong>{{ s.hostname }}</strong>
+          {% if s.ip %}<span style="color:#888780; font-size:11px; margin-left:6px">{{ s.ip }}</span>{% endif %}
+        </td>
+        <td>
+          <span class="badge badge-{{ s.type }}">{{ 'Zimbra' if s.type == 'zimbra' else 'Web' }}</span>
+        </td>
+        <td style="color:#888780; font-size:12px">
+          {% if last %}{{ last.started_at[:16].replace('T', ' ') }}{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if last %}
+            <span class="dot dot-{{ last.status }}"></span>
+            <span class="badge badge-{{ 'ok' if last.status == 'success' else 'err' if last.status == 'error' else 'run' }}">
+              {{ 'OK' if last.status == 'success' else 'Falha' if last.status == 'error' else 'Rodando' }}
+            </span>
+          {% else %}
+            <span style="color:#888780">Nunca</span>
+          {% endif %}
+        </td>
+        <td>
+          <button class="btn btn-sm" onclick="deployOne({{ s.id }}, '{{ s.hostname }}')">Deploy</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-title">Últimos deploys</div>
+  <table>
+    <thead>
+      <tr><th>Data/hora</th><th>Servidor</th><th>Trigger</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for log in recent_logs %}
+      <tr>
+        <td style="font-family:monospace; font-size:12px; color:#888780">
+          {{ log.started_at[:16].replace('T', ' ') }}
+        </td>
+        <td>{{ log.server_hostname }}</td>
+        <td>
+          <span class="badge {{ 'badge-zimbra' if log.trigger == 'auto' else 'badge-web' }}">
+            {{ 'Automático' if log.trigger == 'auto' else 'Manual' }}
+          </span>
+        </td>
+        <td>
+          <span class="dot dot-{{ log.status }}"></span>
+          <span class="badge badge-{{ 'ok' if log.status == 'success' else 'err' if log.status == 'error' else 'run' }}">
+            {{ 'OK' if log.status == 'success' else 'Falha' if log.status == 'error' else 'Rodando' }}
+          </span>
+        </td>
+        <td>
+          <a href="{{ url_for('logs.detail', log_id=log.id) }}" class="btn btn-sm">Ver log</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+function showMsg(msg, ok=true) {
+  const el = document.getElementById('deploy-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.className = 'alert ' + (ok ? 'alert-info' : 'alert-error');
+  setTimeout(() => location.reload(), 3000);
+}
+
+async function deployAll() {
+  if (!confirm('Iniciar deploy em todos os servidores?')) return;
+  document.getElementById('btn-deploy').disabled = true;
+  const r = await fetch('/api/deploy/all', {method:'POST'});
+  const j = await r.json();
+  showMsg(j.msg, j.ok);
+}
+
+async function deployOne(id, hostname) {
+  if (!confirm('Iniciar deploy em ' + hostname + '?')) return;
+  const r = await fetch('/api/deploy/' + id, {method:'POST'});
+  const j = await r.json();
+  showMsg(j.msg, j.ok);
+}
+</script>
+{% endblock %}

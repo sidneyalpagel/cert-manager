@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Configuração{% endblock %}
+{% block page_title %}Configuração{% endblock %}
+
+{% block content %}
+<div style="max-width:680px">
+  <form method="post">
+    <div class="card">
+      <div class="card-title">Certificado Let's Encrypt</div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Domínio principal</label>
+          <input class="form-control" type="text" name="cert_domain"
+                 value="{{ settings.get('cert_domain', '') }}"
+                 placeholder="santahelena.pr.gov.br">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Diretório base do Let's Encrypt</label>
+          <input class="form-control" type="text" name="cert_base_dir"
+                 value="{{ settings.get('cert_base_dir', '/etc/letsencrypt/live') }}">
+        </div>
+      </div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Diretório destino padrão</label>
+          <input class="form-control" type="text" name="cert_dest_dir"
+                 value="{{ settings.get('cert_dest_dir', '/opt/certificados') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Alertar com X dias de antecedência</label>
+          <input class="form-control" type="number" name="expiry_warn_days"
+                 value="{{ settings.get('expiry_warn_days', '30') }}">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Conexão SSH</div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Chave SSH privada</label>
+          <input class="form-control" type="text" name="ssh_key_path"
+                 value="{{ settings.get('ssh_key_path', '/root/.ssh/id_certbot') }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Timeout de conexão (segundos)</label>
+          <input class="form-control" type="number" name="ssh_timeout"
+                 value="{{ settings.get('ssh_timeout', '30') }}">
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end">
+      <button class="btn btn-primary" type="submit">Salvar configurações</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

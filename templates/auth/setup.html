@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Primeiro acesso — Cert Manager</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f4;
+           display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .box { background: #fff; border: 1px solid #e8e6df; border-radius: 12px;
+           padding: 36px 40px; width: 100%; max-width: 400px; }
+    .logo { text-align: center; margin-bottom: 24px; }
+    .logo .icon { font-size: 36px; }
+    .logo h1 { font-size: 20px; font-weight: 700; margin-top: 8px; }
+    .logo p { font-size: 13px; color: #888780; margin-top: 4px; }
+    .info { background: #e6f1fb; color: #0c447c; border: 1px solid #b5d4f4;
+            border-radius: 6px; padding: 10px 12px; font-size: 13px; margin-bottom: 18px; }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #444441; margin-bottom: 5px; }
+    input { width: 100%; padding: 9px 11px; border: 1px solid #d3d1c7; border-radius: 6px; font-size: 14px; }
+    input:focus { outline: none; border-color: #185fa5; box-shadow: 0 0 0 3px rgba(24,95,165,.12); }
+    .btn { width: 100%; padding: 10px; background: #185fa5; color: #fff; border: none;
+           border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 6px; }
+    .btn:hover { background: #0c447c; }
+    .alert { background: #fcebeb; color: #791f1f; border: 1px solid #f7c1c1;
+             border-radius: 6px; padding: 9px 12px; font-size: 13px; margin-bottom: 14px; }
+  </style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">
+    <div class="icon">🔐</div>
+    <h1>Primeiro acesso</h1>
+    <p>Crie o usuário administrador</p>
+  </div>
+  <div class="info">Este é o primeiro acesso. Defina as credenciais de administrador.</div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for _, msg in messages %}
+      <div class="alert">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  <form method="post">
+    <div class="form-group">
+      <label>Usuário</label>
+      <input type="text" name="username" required autofocus>
+    </div>
+    <div class="form-group">
+      <label>Senha (mínimo 8 caracteres)</label>
+      <input type="password" name="password" required>
+    </div>
+    <div class="form-group">
+      <label>Confirmar senha</label>
+      <input type="password" name="confirm" required>
+    </div>
+    <button class="btn" type="submit">Criar administrador</button>
+  </form>
+</div>
+</body>
+</html>

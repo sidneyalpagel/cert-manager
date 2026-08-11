@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Cert Manager{% endblock %} — Santa Helena</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px;
+           background: #f5f5f4; color: #1c1c1a; min-height: 100vh; }
+    a { color: #185fa5; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Layout */
+    .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh;
+               background: #1c1c1a; padding: 0; display: flex; flex-direction: column; }
+    .sidebar-logo { padding: 20px 20px 16px; border-bottom: 1px solid #2c2c2a; }
+    .sidebar-logo .title { color: #fff; font-size: 15px; font-weight: 600; }
+    .sidebar-logo .sub { color: #888780; font-size: 11px; margin-top: 2px; }
+    .sidebar nav { flex: 1; padding: 12px 0; }
+    .sidebar nav a { display: flex; align-items: center; gap: 10px; padding: 9px 20px;
+                     color: #b4b2a9; font-size: 13px; transition: all .15s; }
+    .sidebar nav a:hover { background: #2c2c2a; color: #fff; text-decoration: none; }
+    .sidebar nav a.active { background: #2c2c2a; color: #fff; border-left: 3px solid #378add; }
+    .sidebar nav a .icon { font-size: 16px; width: 18px; text-align: center; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid #2c2c2a; }
+    .sidebar-footer span { color: #888780; font-size: 12px; }
+    .sidebar-footer a { color: #888780; font-size: 12px; float: right; }
+    .sidebar-footer a:hover { color: #fff; }
+
+    .main { margin-left: 220px; min-height: 100vh; }
+    .topbar { background: #fff; border-bottom: 1px solid #e8e6df;
+              padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar h1 { font-size: 16px; font-weight: 600; color: #1c1c1a; }
+    .content { padding: 24px 28px; }
+
+    /* Cards */
+    .card { background: #fff; border: 1px solid #e8e6df; border-radius: 10px;
+            padding: 20px 24px; margin-bottom: 16px; }
+    .card-title { font-size: 13px; font-weight: 600; color: #444441; margin-bottom: 14px; }
+
+    /* Metrics */
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .metric { background: #fff; border: 1px solid #e8e6df; border-radius: 10px; padding: 16px 18px; }
+    .metric-label { font-size: 11px; color: #888780; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .metric-val { font-size: 26px; font-weight: 600; }
+    .metric-val.ok { color: #3b6d11; }
+    .metric-val.warn { color: #854f0b; }
+    .metric-val.err { color: #a32d2d; }
+    .metric-val.neutral { color: #185fa5; }
+
+    /* Badges */
+    .badge { display: inline-block; font-size: 11px; font-weight: 600;
+             padding: 2px 8px; border-radius: 10px; }
+    .badge-ok { background: #eaf3de; color: #27500a; }
+    .badge-err { background: #fcebeb; color: #791f1f; }
+    .badge-run { background: #faeeda; color: #633806; }
+    .badge-zimbra { background: #eeedfe; color: #3c3489; }
+    .badge-web { background: #e6f1fb; color: #0c447c; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; color: #888780; font-weight: 600; font-size: 11px;
+         text-transform: uppercase; letter-spacing: .4px; padding: 8px 10px;
+         border-bottom: 1px solid #e8e6df; }
+    td { padding: 10px 10px; border-bottom: 1px solid #f1efe8; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafaf8; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+           border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;
+           border: 1px solid #d3d1c7; background: #fff; color: #444441;
+           transition: all .15s; }
+    .btn:hover { background: #f5f5f4; border-color: #b4b2a9; }
+    .btn-primary { background: #185fa5; border-color: #185fa5; color: #fff; }
+    .btn-primary:hover { background: #0c447c; border-color: #0c447c; }
+    .btn-danger { color: #a32d2d; border-color: #f09595; }
+    .btn-danger:hover { background: #fcebeb; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+    /* Forms */
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 12px; font-weight: 600;
+                  color: #444441; margin-bottom: 5px; }
+    .form-control { width: 100%; padding: 8px 10px; border: 1px solid #d3d1c7;
+                    border-radius: 6px; font-size: 13px; color: #1c1c1a;
+                    background: #fff; transition: border .15s; }
+    .form-control:focus { outline: none; border-color: #185fa5;
+                          box-shadow: 0 0 0 3px rgba(24,95,165,.12); }
+    .form-grid { display: grid; gap: 12px; }
+    .form-grid-2 { grid-template-columns: 1fr 1fr; }
+    .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    /* Alerts */
+    .alert { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; }
+    .alert-success { background: #eaf3de; color: #27500a; border: 1px solid #c0dd97; }
+    .alert-error { background: #fcebeb; color: #791f1f; border: 1px solid #f7c1c1; }
+    .alert-info { background: #e6f1fb; color: #0c447c; border: 1px solid #b5d4f4; }
+
+    /* Log output */
+    .log-output { background: #1c1c1a; color: #c2c0b6; font-family: monospace;
+                  font-size: 12px; padding: 14px; border-radius: 6px;
+                  white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; }
+
+    /* Status dot */
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+    .dot-ok { background: #639922; }
+    .dot-err { background: #e24b4a; }
+    .dot-run { background: #ef9f27; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="title">🔐 Cert Manager</div>
+    <div class="sub">Santa Helena / PR</div>
+  </div>
+  <nav>
+    <a href="{{ url_for('dashboard.index') }}" class="{{ 'active' if request.endpoint == 'dashboard.index' }}">
+      <span class="icon">📊</span> Dashboard
+    </a>
+    <a href="{{ url_for('servidores.index') }}" class="{{ 'active' if 'servidores' in request.endpoint }}">
+      <span class="icon">🖥️</span> Servidores
+    </a>
+    <a href="{{ url_for('logs.index') }}" class="{{ 'active' if 'logs' in request.endpoint }}">
+      <span class="icon">📋</span> Histórico de deploys
+    </a>
+    <a href="{{ url_for('config.index') }}" class="{{ 'active' if 'config' in request.endpoint }}">
+      <span class="icon">⚙️</span> Configuração
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <span>{{ session.get('username', '') }}</span>
+    <a href="{{ url_for('auth.logout') }}">Sair</a>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>{% block page_title %}{% endblock %}</h1>
+    <div>{% block topbar_actions %}{% endblock %}</div>
+  </div>
+  <div class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+</body>
+</html>

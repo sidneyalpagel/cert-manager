@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar' if action == 'editar' else 'Novo' }} servidor{% endblock %}
+{% block page_title %}{{ 'Editar' if action == 'editar' else 'Novo' }} servidor{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:680px">
+  <form method="post">
+    <div class="form-grid form-grid-2">
+      <div class="form-group">
+        <label class="form-label">Hostname *</label>
+        <input class="form-control" type="text" name="hostname"
+               value="{{ server.hostname if server else '' }}"
+               placeholder="servidor.dominio.gov.br" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">IP (opcional)</label>
+        <input class="form-control" type="text" name="ip"
+               value="{{ server.ip if server else '' }}"
+               placeholder="192.168.1.10">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Tipo de servidor *</label>
+      <select class="form-control" name="type" onchange="toggleType(this.value)">
+        <option value="web" {{ 'selected' if server and server.type == 'web' else '' }}>Web (Apache / Nginx)</option>
+        <option value="zimbra" {{ 'selected' if server and server.type == 'zimbra' else '' }}>Zimbra</option>
+      </select>
+    </div>
+
+    <div class="form-grid form-grid-3">
+      <div class="form-group">
+        <label class="form-label">Usuário SSH</label>
+        <input class="form-control" type="text" name="ssh_user"
+               value="{{ server.ssh_user if server else 'root' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Porta SSH</label>
+        <input class="form-control" type="number" name="ssh_port"
+               value="{{ server.ssh_port if server else 22 }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Diretório de certificados</label>
+        <input class="form-control" type="text" name="cert_dest_dir" id="cert_dest"
+               value="{{ server.cert_dest_dir if server else '/opt/certificados' }}">
+      </div>
+    </div>
+
+    <div class="form-group" id="cmd-group">
+      <label class="form-label">Comando pós-deploy</label>
+      <input class="form-control" type="text" name="post_deploy_cmd" id="post_cmd"
+             value="{{ server.post_deploy_cmd if server else 'systemctl reload apache2' }}"
+             placeholder="systemctl reload apache2">
+      <div style="font-size:11px; color:#888780; margin-top:4px">
+        Para Zimbra, o deploy é feito automaticamente via zmcertmgr.
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:6px">
+      <button class="btn btn-primary" type="submit">Salvar servidor</button>
+      <a href="{{ url_for('servidores.index') }}" class="btn">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<script>
+function toggleType(type) {
+  const cmdGroup = document.getElementById('cmd-group');
+  const certDest = document.getElementById('cert_dest');
+  const postCmd = document.getElementById('post_cmd');
+  if (type === 'zimbra') {
+    cmdGroup.style.opacity = '0.5';
+    postCmd.disabled = true;
+    certDest.value = certDest.value === '/opt/certificados' ? '/opt/zimbra/ssl/letsencrypt' : certDest.value;
+  } else {
+    cmdGroup.style.opacity = '1';
+    postCmd.disabled = false;
+    certDest.value = certDest.value === '/opt/zimbra/ssl/letsencrypt' ? '/opt/certificados' : certDest.value;
+  }
+}
+// Inicializa estado do form
+toggleType(document.querySelector('[name=type]').value);
+</script>
+{% endblock %}
