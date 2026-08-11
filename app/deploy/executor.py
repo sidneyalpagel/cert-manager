@@ -41,7 +41,7 @@ def deploy_web(server, settings):
 
     # rsync dos certificados
     rsync_cmd = (
-        f'rsync -az --delete '
+        f'rsync -az --delete --copy-links '
         f'-e "ssh {ssh_opts}" '
         f'{cert_dir}/ {ssh_user}@{hostname}:{cert_dest}/'
     )
@@ -97,7 +97,7 @@ def deploy_zimbra(server, settings):
 
     # rsync dos certificados
     rsync_cmd = (
-        f'rsync -az --delete '
+        f'rsync -az --delete --copy-links '
         f'-e "ssh {ssh_opts}" '
         f'{cert_dir}/ {ssh_user}@{hostname}:{zimbra_dir}/'
     )
