@@ -118,6 +118,7 @@ def deploy_zimbra(server, settings):
 set -e
 ZDIR="{zimbra_dir}"
 mkdir -p $ZDIR
+rm -f $ZDIR/zimbra.crt $ZDIR/ca.crt
 cat $ZDIR/cert.pem $ZDIR/chain.pem > $ZDIR/zimbra.crt
 if [ ! -f "$ZDIR/ca.crt" ]; then
     curl -s https://letsencrypt.org/certs/isrgrootx1.pem -o "$ZDIR/ca.crt"
