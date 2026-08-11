@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from app.routes.auth import login_required
 from app.models import (get_all_servers, get_server, create_deploy_log,
                         finish_deploy_log, get_all_settings)
-from app.deploy.executor import deploy_web, deploy_zimbra
+from app.deploy.executor import deploy_web, deploy_zimbra, deploy_hestia
 import threading
 import hmac
 import hashlib
@@ -17,6 +17,8 @@ def run_deploy_server(app, server, settings, log_id, trigger='manual'):
         try:
             if server['type'] == 'zimbra':
                 ok, output = deploy_zimbra(server, settings)
+            elif server['type'] == 'hestia':
+                ok, output = deploy_hestia(server, settings)
             else:
                 ok, output = deploy_web(server, settings)
             finish_deploy_log(log_id, 'success' if ok else 'error', output)
@@ -32,6 +34,8 @@ def run_deploy_all(app, servers, settings, trigger='manual'):
             try:
                 if server['type'] == 'zimbra':
                     ok, output = deploy_zimbra(server, settings)
+                elif server['type'] == 'hestia':
+                    ok, output = deploy_hestia(server, settings)
                 else:
                     ok, output = deploy_web(server, settings)
                 finish_deploy_log(log_id, 'success' if ok else 'error', output)

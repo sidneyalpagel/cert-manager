@@ -27,7 +27,7 @@ def init_db(app):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 hostname TEXT NOT NULL,
                 ip TEXT,
-                type TEXT NOT NULL CHECK(type IN ('web', 'zimbra')),
+                type TEXT NOT NULL CHECK(type IN ('web', 'zimbra', 'hestia')),
                 ssh_user TEXT NOT NULL DEFAULT 'root',
                 ssh_port INTEGER NOT NULL DEFAULT 22,
                 cert_dest_dir TEXT NOT NULL DEFAULT '/opt/certificados',

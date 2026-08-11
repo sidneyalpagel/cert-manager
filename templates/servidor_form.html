@@ -25,6 +25,7 @@
       <select class="form-control" name="type" onchange="toggleType(this.value)">
         <option value="web" {{ 'selected' if server and server.type == 'web' else '' }}>Web (Apache / Nginx)</option>
         <option value="zimbra" {{ 'selected' if server and server.type == 'zimbra' else '' }}>Zimbra</option>
+        <option value="hestia" {{ 'selected' if server and server.type == 'hestia' else '' }}>Hestia CP</option>
       </select>
     </div>
 
@@ -67,15 +68,28 @@
 function toggleType(type) {
   const cmdGroup = document.getElementById('cmd-group');
   const certDest = document.getElementById('cert_dest');
+  const certDestLabel = document.querySelector('label[for="cert_dest"], .form-label:last-of-type');
   const postCmd = document.getElementById('post_cmd');
+
   if (type === 'zimbra') {
     cmdGroup.style.opacity = '0.5';
     postCmd.disabled = true;
-    certDest.value = certDest.value === '/opt/certificados' ? '/opt/zimbra/ssl/letsencrypt' : certDest.value;
+    certDest.placeholder = '/opt/zimbra/ssl/letsencrypt';
+    if (['\/opt\/certificados', '\/opt\/zimbra\/ssl\/letsencrypt', 'admin'].includes(certDest.value) || certDest.value === '')
+      certDest.value = '/opt/zimbra/ssl/letsencrypt';
+  } else if (type === 'hestia') {
+    cmdGroup.style.opacity = '0.5';
+    postCmd.disabled = true;
+    certDest.placeholder = 'admin';
+    certDest.title = 'Usuário do Hestia (ex: admin)';
+    if (['\/opt\/certificados', '\/opt\/zimbra\/ssl\/letsencrypt'].includes(certDest.value) || certDest.value === '')
+      certDest.value = 'admin';
   } else {
     cmdGroup.style.opacity = '1';
     postCmd.disabled = false;
-    certDest.value = certDest.value === '/opt/zimbra/ssl/letsencrypt' ? '/opt/certificados' : certDest.value;
+    certDest.placeholder = '/opt/certificados';
+    if (['admin', '\/opt\/zimbra\/ssl\/letsencrypt'].includes(certDest.value) || certDest.value === '')
+      certDest.value = '/opt/certificados';
   }
 }
 // Inicializa estado do form

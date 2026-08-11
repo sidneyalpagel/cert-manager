@@ -62,7 +62,7 @@
           {% if s.ip %}<span style="color:#888780; font-size:11px; margin-left:6px">{{ s.ip }}</span>{% endif %}
         </td>
         <td>
-          <span class="badge badge-{{ s.type }}">{{ 'Zimbra' if s.type == 'zimbra' else 'Web' }}</span>
+          <span class="badge badge-{{ s.type }}">{{ 'Zimbra' if s.type == 'zimbra' else 'Hestia' if s.type == 'hestia' else 'Web' }}</span>
         </td>
         <td style="color:#888780; font-size:12px">
           {% if last %}{{ last.started_at[:16].replace('T', ' ') }}{% else %}—{% endif %}

@@ -25,7 +25,7 @@
           <strong>{{ s.hostname }}</strong>
           {% if s.ip %}<br><span style="font-size:11px; color:#888780">{{ s.ip }}</span>{% endif %}
         </td>
-        <td><span class="badge badge-{{ s.type }}">{{ 'Zimbra' if s.type == 'zimbra' else 'Web' }}</span></td>
+        <td><span class="badge badge-{{ s.type }}">{{ 'Zimbra' if s.type == 'zimbra' else 'Hestia' if s.type == 'hestia' else 'Web' }}</span></td>
         <td style="font-family:monospace; font-size:12px">{{ s.ssh_user }}:{{ s.ssh_port }}</td>
         <td style="font-family:monospace; font-size:11px; color:#888780">{{ s.cert_dest_dir }}</td>
         <td style="font-family:monospace; font-size:11px; color:#888780">{{ s.post_deploy_cmd or '—' }}</td>
