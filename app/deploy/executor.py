@@ -95,11 +95,21 @@ def deploy_zimbra(server, settings):
 
     lines.append(f'[{datetime.now():%H:%M:%S}] Iniciando deploy Zimbra em {hostname}')
 
-    # rsync dos certificados
+    # Garantir que o CA root existe localmente
+    ca_path = '/etc/letsencrypt/isrgrootx1.pem'
+    if not os.path.exists(ca_path):
+        rc, out = run_cmd(f'curl -s https://letsencrypt.org/certs/isrgrootx1.pem -o {ca_path}', timeout=30)
+        if rc != 0:
+            lines.append(f'[{datetime.now():%H:%M:%S}] ERRO ao baixar CA root')
+            return False, '\n'.join(lines)
+
+    # rsync dos certificados + CA root
     rsync_cmd = (
-        f'rsync -az --delete --copy-links '
+        f'rsync -az --delete --copy-links --checksum '
         f'-e "ssh {ssh_opts}" '
-        f'{cert_dir}/ {ssh_user}@{hostname}:{zimbra_dir}/'
+        f'{cert_dir}/ {ssh_user}@{hostname}:{zimbra_dir}/ '
+        f'&& rsync -az --checksum -e "ssh {ssh_opts}" '
+        f'{ca_path} {ssh_user}@{hostname}:{zimbra_dir}/ca.crt'
     )
     lines.append(f'[{datetime.now():%H:%M:%S}] rsync → {zimbra_dir}/')
     rc, out = run_cmd(rsync_cmd, timeout=60)
@@ -118,11 +128,8 @@ def deploy_zimbra(server, settings):
 set -e
 ZDIR="{zimbra_dir}"
 mkdir -p $ZDIR
-rm -f $ZDIR/zimbra.crt $ZDIR/ca.crt
+rm -f $ZDIR/zimbra.crt
 cat $ZDIR/cert.pem $ZDIR/chain.pem > $ZDIR/zimbra.crt
-if [ ! -f "$ZDIR/ca.crt" ]; then
-    curl -s https://letsencrypt.org/certs/isrgrootx1.pem -o "$ZDIR/ca.crt"
-fi
 chown -R zimbra:zimbra $ZDIR
 chmod 600 $ZDIR/privkey.pem
 sudo -u zimbra /opt/zimbra/bin/zmcertmgr verifycrt comm $ZDIR/privkey.pem $ZDIR/zimbra.crt $ZDIR/ca.crt
