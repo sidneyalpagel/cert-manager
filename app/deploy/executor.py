@@ -108,10 +108,16 @@ def deploy_zimbra(server, settings):
         lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no rsync (rc={rc})')
         return False, '\n'.join(lines)
 
+    # Verificar se os arquivos chegaram
+    check_cmd = f'ssh {ssh_opts} {ssh_user}@{hostname} "ls -la {zimbra_dir}/"'
+    rc, out = run_cmd(check_cmd, timeout=timeout)
+    lines.append(out.strip())
+
     # Script remoto completo do Zimbra
     zimbra_script = f"""
 set -e
 ZDIR="{zimbra_dir}"
+mkdir -p $ZDIR
 cat $ZDIR/cert.pem $ZDIR/chain.pem > $ZDIR/zimbra.crt
 if [ ! -f "$ZDIR/ca.crt" ]; then
     curl -s https://letsencrypt.org/certs/isrgrootx1.pem -o "$ZDIR/ca.crt"
