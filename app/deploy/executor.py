@@ -85,6 +85,97 @@ def deploy_zimbra(server, settings):
         settings.get('cert_base_dir', '/etc/letsencrypt/live'),
         settings.get('cert_domain', 'santahelena.pr.gov.br')
     )
+    ca_path = '/etc/letsencrypt/isrgrootx1.pem'
+    timeout = int(settings.get('ssh_timeout', '30'))
+
+    ssh_opts = (
+        f'-i {ssh_key} -p {ssh_port} '
+        f'-o StrictHostKeyChecking=no '
+        f'-o ConnectTimeout={timeout}'
+    )
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Iniciando deploy Zimbra em {hostname}')
+
+    # Garantir que o CA root existe localmente
+    if not os.path.exists(ca_path):
+        rc, out = run_cmd(f'curl -s https://letsencrypt.org/certs/isrgrootx1.pem -o {ca_path}', timeout=30)
+        if rc != 0:
+            lines.append(f'[{datetime.now():%H:%M:%S}] ERRO ao baixar CA root')
+            return False, '\n'.join(lines)
+
+    # rsync dos certificados + CA root
+    rsync_cmd = (
+        f'rsync -az --delete --copy-links --checksum '
+        f'-e "ssh {ssh_opts}" '
+        f'{cert_dir}/ {ssh_user}@{hostname}:{zimbra_dir}/ '
+        f'&& rsync -az --checksum -e "ssh {ssh_opts}" '
+        f'{ca_path} {ssh_user}@{hostname}:{zimbra_dir}/isrgrootx1.pem'
+    )
+    lines.append(f'[{datetime.now():%H:%M:%S}] rsync → {zimbra_dir}/')
+    rc, out = run_cmd(rsync_cmd, timeout=60)
+    if out.strip():
+        lines.append(out.strip())
+    if rc != 0:
+        lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no rsync (rc={rc})')
+        return False, '\n'.join(lines)
+
+    # Script remoto completo do Zimbra
+    zimbra_script = f"""
+set -e
+ZDIR="{zimbra_dir}"
+mkdir -p $ZDIR
+rm -f $ZDIR/zimbra.crt $ZDIR/ca.crt
+
+# Montar zimbra.crt = cert + chain
+cat $ZDIR/cert.pem $ZDIR/chain.pem > $ZDIR/zimbra.crt
+
+# Montar ca.crt com cadeia completa: chain + isrgrootx1
+# (necessário para Zimbra validar a cadeia YR1 -> Root YR -> ISRG Root X1)
+cat $ZDIR/chain.pem $ZDIR/isrgrootx1.pem > $ZDIR/ca.crt
+
+# Copiar nova chave privada para o local do Zimbra
+cp $ZDIR/privkey.pem /opt/zimbra/ssl/zimbra/commercial/commercial.key
+chown zimbra:zimbra /opt/zimbra/ssl/zimbra/commercial/commercial.key
+chmod 640 /opt/zimbra/ssl/zimbra/commercial/commercial.key
+
+# Ajustar permissões do diretório
+chown -R zimbra:zimbra $ZDIR
+chmod 600 $ZDIR/privkey.pem
+
+# Verificar e fazer deploy
+sudo -u zimbra /opt/zimbra/bin/zmcertmgr verifycrt comm \\
+  $ZDIR/privkey.pem $ZDIR/zimbra.crt $ZDIR/ca.crt
+
+sudo -u zimbra /opt/zimbra/bin/zmcertmgr deploycrt comm \\
+  $ZDIR/zimbra.crt $ZDIR/ca.crt
+
+# Reiniciar serviços
+sudo -u zimbra /opt/zimbra/bin/zmcontrol restart
+
+echo "Zimbra deploy OK"
+"""
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Executando zmcertmgr + restart serviços')
+    remote_cmd = f"ssh {ssh_opts} {ssh_user}@{hostname} 'bash -s' << 'ENDSSH'\n{zimbra_script}\nENDSSH"
+    rc, out = run_cmd(remote_cmd, timeout=600)
+    lines.append(out.strip())
+    if rc != 0:
+        lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no deploy Zimbra (rc={rc})')
+        return False, '\n'.join(lines)
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Deploy Zimbra concluído com sucesso')
+    return True, '\n'.join(lines)
+    """Deploy para servidor Zimbra: rsync + zmcertmgr + restart serviços."""
+    lines = []
+    hostname = server['hostname']
+    ssh_user = server['ssh_user']
+    ssh_port = server['ssh_port']
+    zimbra_dir = server['cert_dest_dir'] or '/opt/zimbra/ssl/letsencrypt'
+    ssh_key = settings.get('ssh_key_path', '/root/.ssh/id_certbot')
+    cert_dir = os.path.join(
+        settings.get('cert_base_dir', '/etc/letsencrypt/live'),
+        settings.get('cert_domain', 'santahelena.pr.gov.br')
+    )
     timeout = int(settings.get('ssh_timeout', '30'))
 
     ssh_opts = (
