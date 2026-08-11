@@ -30,7 +30,7 @@
         <td style="font-family:monospace; font-size:11px; color:#888780">{{ s.cert_dest_dir }}</td>
         <td style="font-family:monospace; font-size:11px; color:#888780">{{ s.post_deploy_cmd or '—' }}</td>
         <td style="font-size:12px; color:#888780">
-          {% if last %}{{ last.started_at[:16].replace('T', ' ') }}{% else %}—{% endif %}
+          {% if last %}{{ last.started_at | string | truncate(16, True, '') | replace('T', ' ') }}{% else %}—{% endif %}
         </td>
         <td>
           {% if last %}

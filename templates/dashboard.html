@@ -29,7 +29,7 @@
     {% set last = recent_logs[0] if recent_logs else none %}
     <div class="metric-val {{ 'ok' if last and last.status == 'success' else 'err' if last else 'neutral' }}"
          style="font-size:15px; margin-top:6px">
-      {% if last %}{{ last.started_at[:16].replace('T', ' ') }}{% else %}—{% endif %}
+      {% if last %}{{ last.started_at | string | truncate(16, True, '') | replace('T', ' ') }}{% else %}—{% endif %}
     </div>
   </div>
   <div class="metric">
@@ -65,7 +65,7 @@
           <span class="badge badge-{{ s.type }}">{{ 'Zimbra' if s.type == 'zimbra' else 'Hestia' if s.type == 'hestia' else 'Web' }}</span>
         </td>
         <td style="color:#888780; font-size:12px">
-          {% if last %}{{ last.started_at[:16].replace('T', ' ') }}{% else %}—{% endif %}
+          {% if last %}{{ last.started_at | string | truncate(16, True, '') | replace('T', ' ') }}{% else %}—{% endif %}
         </td>
         <td>
           {% if last %}
@@ -96,7 +96,7 @@
       {% for log in recent_logs %}
       <tr>
         <td style="font-family:monospace; font-size:12px; color:#888780">
-          {{ log.started_at[:16].replace('T', ' ') }}
+          {{ log.started_at | string | truncate(16, True, '') | replace('T', ' ') }}
         </td>
         <td>{{ log.server_hostname }}</td>
         <td>

@@ -12,7 +12,7 @@
       {% for log in logs %}
       <tr>
         <td style="font-family:monospace; font-size:12px; color:#888780">
-          {{ log.started_at[:16].replace('T', ' ') if log.started_at else '—' }}
+          {{ log.started_at | string | truncate(16, True, '') | replace('T', ' ') if log.started_at else '—' }}
         </td>
         <td><strong>{{ log.server_hostname }}</strong></td>
         <td>

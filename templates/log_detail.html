@@ -21,7 +21,7 @@
     </div>
     <div>
       <div style="font-size:11px; color:#888780; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px">Iniciado em</div>
-      <span style="font-size:13px">{{ log.started_at[:16].replace('T', ' ') if log.started_at else '—' }}</span>
+      <span style="font-size:13px">{{ log.started_at | string | truncate(16, True, '') | replace('T', ' ') if log.started_at else '—' }}</span>
     </div>
     <div>
       <div style="font-size:11px; color:#888780; text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px">Status</div>
