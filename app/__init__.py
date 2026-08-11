@@ -3,6 +3,8 @@ from config import Config
 import sqlite3
 import os
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 def get_db(app):
     db_path = app.config['DATABASE']
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -63,7 +65,9 @@ def init_db(app):
         db.close()
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__,
+                template_folder=os.path.join(BASE_DIR, 'templates'),
+                static_folder=os.path.join(BASE_DIR, 'static'))
     app.config.from_object(Config)
 
     os.makedirs(os.path.dirname(app.config['DATABASE']), exist_ok=True)
