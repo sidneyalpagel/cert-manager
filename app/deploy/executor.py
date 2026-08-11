@@ -142,6 +142,9 @@ chmod 640 /opt/zimbra/ssl/zimbra/commercial/commercial.key
 chown -R zimbra:zimbra $ZDIR
 chmod 600 $ZDIR/privkey.pem
 
+# Ir para diretório neutro antes de rodar comandos como zimbra
+cd /tmp
+
 # Verificar e fazer deploy
 sudo -u zimbra /opt/zimbra/bin/zmcertmgr verifycrt comm \\
   $ZDIR/privkey.pem $ZDIR/zimbra.crt $ZDIR/ca.crt
