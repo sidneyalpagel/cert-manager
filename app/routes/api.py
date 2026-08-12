@@ -14,6 +14,7 @@ def run_deploy_server(app, server, settings, log_id, trigger='manual'):
     """Executa deploy em thread separada para não bloquear a interface."""
     with app.app_context():
         from app.models import finish_deploy_log
+        from app.notify import send_deploy_notification
         try:
             if server['type'] == 'zimbra':
                 ok, output = deploy_zimbra(server, settings)
@@ -21,14 +22,23 @@ def run_deploy_server(app, server, settings, log_id, trigger='manual'):
                 ok, output = deploy_hestia(server, settings)
             else:
                 ok, output = deploy_web(server, settings)
-            finish_deploy_log(log_id, 'success' if ok else 'error', output)
+            status = 'success' if ok else 'error'
+            finish_deploy_log(log_id, status, output)
+            send_deploy_notification(
+                server['hostname'], server['type'], status, output, trigger
+            )
         except Exception as e:
             finish_deploy_log(log_id, 'error', str(e))
+            send_deploy_notification(
+                server['hostname'], server.get('type', ''), 'error', str(e), trigger
+            )
 
 def run_deploy_all(app, servers, settings, trigger='manual'):
     """Deploy em todos os servidores."""
     with app.app_context():
         from app.models import create_deploy_log, finish_deploy_log
+        from app.notify import send_deploy_notification, send_failure_summary
+        failures = []
         for server in servers:
             log_id = create_deploy_log(server['id'], server['hostname'], trigger)
             try:
@@ -38,9 +48,19 @@ def run_deploy_all(app, servers, settings, trigger='manual'):
                     ok, output = deploy_hestia(server, settings)
                 else:
                     ok, output = deploy_web(server, settings)
-                finish_deploy_log(log_id, 'success' if ok else 'error', output)
+                status = 'success' if ok else 'error'
+                finish_deploy_log(log_id, status, output)
+                send_deploy_notification(
+                    server['hostname'], server['type'], status, output, trigger
+                )
+                if not ok:
+                    failures.append({'hostname': server['hostname'], 'error': output.split('\n')[-1]})
             except Exception as e:
                 finish_deploy_log(log_id, 'error', str(e))
+                failures.append({'hostname': server['hostname'], 'error': str(e)})
+        # Resumo de falhas apenas no deploy automático
+        if trigger == 'auto' and failures:
+            send_failure_summary(failures)
 
 @api_bp.route('/api/deploy/all', methods=['POST'])
 @login_required
