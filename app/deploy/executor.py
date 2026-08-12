@@ -245,6 +245,106 @@ echo "Zimbra deploy OK"
     return True, '\n'.join(lines)
 
 def deploy_hestia(server, settings):
+    """Deploy para servidor Hestia CP: rsync wildcard para todos os usuários."""
+    lines = []
+    hostname = server['hostname']
+    ssh_user = server['ssh_user']
+    ssh_port = server['ssh_port']
+    ssh_key = settings.get('ssh_key_path', '/root/.ssh/id_certbot')
+    domain = settings.get('cert_domain', 'santahelena.pr.gov.br')
+    cert_dir = os.path.join(
+        settings.get('cert_base_dir', '/etc/letsencrypt/live'),
+        domain
+    )
+    timeout = int(settings.get('ssh_timeout', '30'))
+
+    ssh_opts = (
+        f'-i {ssh_key} -p {ssh_port} '
+        f'-o StrictHostKeyChecking=no '
+        f'-o ConnectTimeout={timeout}'
+    )
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Iniciando deploy Hestia em {hostname}')
+
+    # Primeiro envia os certificados para /tmp no servidor
+    rsync_cmd = (
+        f'rsync -az --copy-links --checksum '
+        f'-e "ssh {ssh_opts}" '
+        f'{cert_dir}/ {ssh_user}@{hostname}:/tmp/certmanager_ssl/'
+    )
+    lines.append(f'[{datetime.now():%H:%M:%S}] Enviando certificados para {hostname}')
+    rc, out = run_cmd(rsync_cmd, timeout=60)
+    if out.strip():
+        lines.append(out.strip())
+    if rc != 0:
+        lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no rsync (rc={rc})')
+        return False, '\n'.join(lines)
+
+    # Script remoto: distribui para todos os usuários com SSL
+    hestia_script = f"""
+set -e
+DOMAIN="{domain}"
+SRC="/tmp/certmanager_ssl"
+UPDATED=0
+FAILED=0
+
+echo "Distribuindo certificado wildcard para todos os usuários Hestia..."
+
+for USER_DIR in /home/*/; do
+    USER=$(basename "$USER_DIR")
+    WEB_CONF="/home/$USER/conf/web"
+
+    if [ ! -d "$WEB_CONF" ]; then
+        continue
+    fi
+
+    for DOM_DIR in $WEB_CONF/*/; do
+        DOM=$(basename "$DOM_DIR")
+        SSL_DIR="$DOM_DIR/ssl"
+
+        if [ ! -d "$SSL_DIR" ]; then
+            continue
+        fi
+
+        echo "  → $USER / $DOM"
+
+        cp $SRC/cert.pem    $SSL_DIR/$DOM.crt  2>/dev/null || true
+        cp $SRC/privkey.pem $SSL_DIR/$DOM.key  2>/dev/null || true
+        cp $SRC/chain.pem   $SSL_DIR/$DOM.ca   2>/dev/null || true
+        cp $SRC/fullchain.pem $SSL_DIR/$DOM.pem 2>/dev/null || true
+        chmod 640 $SSL_DIR/$DOM.key 2>/dev/null || true
+        chown $USER:$USER $SSL_DIR/$DOM.* 2>/dev/null || true
+
+        UPDATED=$((UPDATED + 1))
+    done
+done
+
+# Atualizar certificado do próprio painel Hestia
+if [ -d "/usr/local/hestia/ssl" ]; then
+    cp $SRC/cert.pem    /usr/local/hestia/ssl/certificate.crt
+    cp $SRC/privkey.pem /usr/local/hestia/ssl/certificate.key
+    echo "  → Painel Hestia atualizado"
+fi
+
+# Recarregar serviços web
+systemctl reload nginx  2>/dev/null && echo "  → nginx recarregado" || true
+systemctl reload apache2 2>/dev/null && echo "  → apache2 recarregado" || true
+systemctl restart hestia 2>/dev/null && echo "  → hestia reiniciado" || true
+
+rm -rf $SRC
+echo "Hestia deploy OK: $UPDATED domínios atualizados"
+"""
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Distribuindo para domínios e recarregando serviços')
+    remote_cmd = f"ssh {ssh_opts} {ssh_user}@{hostname} 'bash -s' << 'ENDSSH'\n{hestia_script}\nENDSSH"
+    rc, out = run_cmd(remote_cmd, timeout=120)
+    lines.append(out.strip())
+    if rc != 0:
+        lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no deploy Hestia (rc={rc})')
+        return False, '\n'.join(lines)
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Deploy Hestia concluído com sucesso')
+    return True, '\n'.join(lines)
     """Deploy para servidor Hestia CP: rsync wildcard + reload nginx/apache."""
     lines = []
     hostname = server['hostname']
