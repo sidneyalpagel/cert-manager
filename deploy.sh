@@ -12,7 +12,7 @@ REPO="cert-manager"
 BRANCH="main"
 SERVICE="cert-manager"
 VENV="$APP_DIR/venv"
-DATA_DIR="$APP_DIR/data"
+DATA_DIR="/var/lib/cert-manager"
 TOKEN_FILE="/root/.github_token"
 
 echo "=============================="
@@ -47,9 +47,17 @@ else
     git remote set-url origin "https://github.com/${GITHUB_USER}/${REPO}.git"
 fi
 
-# 2. Garantir que o diretório de dados existe (fora do git)
+# 2. Garantir que o diretório de dados existe fora do git
 echo "[2/5] Verificando diretório de dados..."
 mkdir -p "$DATA_DIR"
+# Criar symlink data/ → /var/lib/cert-manager para o app encontrar o banco
+if [ ! -L "$APP_DIR/data" ]; then
+    rm -rf "$APP_DIR/data"
+    ln -sf "$DATA_DIR" "$APP_DIR/data"
+fi
+# Adicionar DATABASE ao .env se não estiver lá
+grep -q "^DATABASE=" "$APP_DIR/.env" 2>/dev/null || \
+    echo "DATABASE=$DATA_DIR/certmanager.db" >> "$APP_DIR/.env"
 
 # 3. Criar/atualizar virtualenv
 echo "[3/5] Atualizando dependências Python..."
