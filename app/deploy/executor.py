@@ -152,8 +152,9 @@ sudo -u zimbra /opt/zimbra/bin/zmcertmgr verifycrt comm \\
 sudo -u zimbra /opt/zimbra/bin/zmcertmgr deploycrt comm \\
   $ZDIR/zimbra.crt $ZDIR/ca.crt
 
-# Reiniciar todos os serviços via init.d (mais completo que zmcontrol)
-/etc/init.d/zimbra restart
+# Reiniciar todos os serviços via init.d
+# O zmstatctl pode retornar erro não-fatal — ignoramos rc != 0
+/etc/init.d/zimbra restart || true
 
 echo "Zimbra deploy OK"
 """
