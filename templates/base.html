@@ -136,6 +136,9 @@
     <a href="{{ url_for('config.index') }}" class="{{ 'active' if 'config' in request.endpoint }}">
       <span class="icon">⚙️</span> Configuração
     </a>
+    <a href="{{ url_for('downloads.index') }}" class="{{ 'active' if 'downloads' in request.endpoint }}">
+      <span class="icon">⬇️</span> Downloads
+    </a>
     <a href="{{ url_for('dns.technitium_redirect') }}" target="_blank">
       <span class="icon">🌐</span> Technitium DNS
     </a>

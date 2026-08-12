@@ -80,6 +80,7 @@ def create_app():
     from app.routes.config import config_bp
     from app.routes.api import api_bp
     from app.routes.dns import dns_bp
+    from app.routes.downloads import downloads_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -88,5 +89,6 @@ def create_app():
     app.register_blueprint(config_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(dns_bp)
+    app.register_blueprint(downloads_bp)
 
     return app

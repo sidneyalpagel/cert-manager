@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Downloads{% endblock %}
+{% block page_title %}Downloads de Certificados{% endblock %}
+
+{% block content %}
+
+{% if erro %}
+<div class="alert alert-error">{{ erro }}</div>
+{% endif %}
+
+<!-- tudo.pem para HikCentral -->
+<div class="card">
+  <div class="card-title">🔐 tudo.pem — HikCentral Professional</div>
+  <p style="color:#888780; font-size:13px; margin-bottom:16px">
+    Arquivo único no formato PEM contendo <strong>chave privada + certificado + fullchain</strong>,
+    pronto para upload na interface do HikCentral em
+    <em>System → Security → Transport Protocol → Upload Certificate</em>.
+  </p>
+  {% if not erro %}
+  <div style="display:flex; align-items:center; gap:16px; padding:16px; background:#f5f5f4; border-radius:8px; margin-bottom:16px">
+    <div style="font-size:32px">📄</div>
+    <div style="flex:1">
+      <div style="font-weight:600; font-size:14px">tudo.pem</div>
+      <div style="font-size:12px; color:#888780; margin-top:2px">
+        privkey.pem + cert.pem + fullchain.pem · {{ tamanho }} bytes
+      </div>
+      {% if info.get('vencimento') %}
+      <div style="font-size:12px; color:#888780; margin-top:2px">
+        Certificado válido até: <strong>{{ info.vencimento }}</strong>
+      </div>
+      {% endif %}
+    </div>
+    <a href="{{ url_for('downloads.baixar_tudo_pem') }}" class="btn btn-primary">
+      ⬇ Baixar tudo.pem
+    </a>
+  </div>
+  {% endif %}
+  <div style="background:#1c1c1a; color:#888780; font-size:11px; padding:10px 14px; border-radius:6px; font-family:monospace">
+    # Conteúdo do tudo.pem (ordem):<br>
+    -----BEGIN PRIVATE KEY-----  ← privkey.pem<br>
+    ...<br>
+    -----END PRIVATE KEY-----<br><br>
+    -----BEGIN CERTIFICATE-----  ← cert.pem<br>
+    ...<br>
+    -----END CERTIFICATE-----<br><br>
+    -----BEGIN CERTIFICATE-----  ← fullchain.pem (cert + chain)<br>
+    ...<br>
+    -----END CERTIFICATE-----
+  </div>
+</div>
+
+<!-- Arquivos individuais -->
+<div class="card">
+  <div class="card-title">📁 Arquivos individuais</div>
+  <table>
+    <thead>
+      <tr><th>Arquivo</th><th>Descrição</th><th>Tamanho</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% set arquivos = [
+        ('fullchain.pem', 'Certificado completo (cert + chain) — para Apache, Nginx'),
+        ('cert.pem',      'Certificado do domínio apenas'),
+        ('privkey.pem',   'Chave privada — mantenha segura'),
+        ('chain.pem',     'Cadeia intermediária (CA)'),
+      ] %}
+      {% for nome, desc in arquivos %}
+      <tr>
+        <td style="font-family:monospace; font-size:13px; font-weight:600">{{ nome }}</td>
+        <td style="font-size:12px; color:#888780">{{ desc }}</td>
+        <td style="font-size:12px; color:#888780">
+          {% if info.get(nome) %}{{ info[nome].tamanho }} bytes{% else %}—{% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('downloads.baixar_arquivo', nome=nome) }}" class="btn btn-sm">
+            ⬇ Baixar
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Informações do certificado -->
+{% if info.get('vencimento') %}
+<div class="card">
+  <div class="card-title">ℹ️ Informações do certificado atual</div>
+  <table>
+    <tbody>
+      <tr>
+        <td style="font-weight:600; width:180px">Domínio</td>
+        <td style="font-family:monospace; font-size:12px">{{ info.get('dominio', '—') }}</td>
+      </tr>
+      <tr>
+        <td style="font-weight:600">Vencimento</td>
+        <td style="font-family:monospace; font-size:12px">{{ info.get('vencimento', '—') }}</td>
+      </tr>
+      <tr>
+        <td style="font-weight:600">Renovação</td>
+        <td style="font-size:12px; color:#888780">Automática via Certbot (quando restar menos de 30 dias)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}
