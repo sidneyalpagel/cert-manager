@@ -558,7 +558,12 @@ echo "pfSense deploy OK\\n";
         tf.write('<?php\n' + php_script)
         tmp_php = tf.name
 
-    scp_cmd = f'scp {ssh_opts} {tmp_php} {ssh_user}@{hostname}:/tmp/certmanager_deploy.php'
+    scp_opts = (
+        f'-i {ssh_key} -P {ssh_port} '
+        f'-o StrictHostKeyChecking=no '
+        f'-o ConnectTimeout={timeout}'
+    )
+    scp_cmd = f'scp {scp_opts} {tmp_php} {ssh_user}@{hostname}:/tmp/certmanager_deploy.php'
     rc, out = run_cmd(scp_cmd, timeout=timeout)
     if rc != 0:
         lines.append(f'ERRO ao enviar script: {out}')
