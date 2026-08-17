@@ -91,4 +91,11 @@ def create_app():
     app.register_blueprint(dns_bp)
     app.register_blueprint(downloads_bp)
 
+    @app.context_processor
+    def inject_org():
+        return {
+            'ORG_NAME': app.config.get('ORG_NAME', 'Cert Manager'),
+            'ORG_SHORT': app.config.get('ORG_SHORT', ''),
+        }
+
     return app

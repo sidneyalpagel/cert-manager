@@ -11,3 +11,5 @@ class Config:
     SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH', '/root/.ssh/id_certbot')
     SSH_TIMEOUT = int(os.environ.get('SSH_TIMEOUT', '30'))
     EXPIRY_WARN_DAYS = int(os.environ.get('EXPIRY_WARN_DAYS', '30'))
+    ORG_NAME = os.environ.get('ORG_NAME', 'Cert Manager')
+    ORG_SHORT = os.environ.get('ORG_SHORT', '')

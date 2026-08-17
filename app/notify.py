@@ -6,10 +6,12 @@ from datetime import datetime
 
 def send_deploy_notification(server_hostname, server_type, status, output, trigger):
     """Envia email de notificação após deploy."""
-    smtp_host = os.environ.get('SMTP_HOST', 'zldapmta.santahelena.pr.gov.br')
+    smtp_host = os.environ.get('SMTP_HOST', 'localhost')
     smtp_port = int(os.environ.get('SMTP_PORT', '25'))
-    email_from = os.environ.get('EMAIL_FROM', 'certmanager@santahelena.pr.gov.br')
-    email_to = os.environ.get('EMAIL_TO', 'informatica@santahelena.pr.gov.br')
+    email_from = os.environ.get('EMAIL_FROM', '')
+    email_to = os.environ.get('EMAIL_TO', '')
+    org_name = os.environ.get('ORG_NAME', 'Cert Manager')
+    base_url = os.environ.get('BASE_URL', '')
 
     if not email_to:
         return
@@ -35,9 +37,9 @@ Data/hora:  {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 --- Saída do deploy ---
 {output_preview}
 
-Acesse https://certmanager.santahelena.pr.gov.br para mais detalhes.
+Acesse {base_url} para mais detalhes.
 
--- Cert Manager | Prefeitura de Santa Helena / PR
+-- Cert Manager | {org_name}
 """
 
     try:
@@ -58,10 +60,12 @@ def send_failure_summary(failures):
     if not failures:
         return
 
-    smtp_host = os.environ.get('SMTP_HOST', 'zldapmta.santahelena.pr.gov.br')
+    smtp_host = os.environ.get('SMTP_HOST', 'localhost')
     smtp_port = int(os.environ.get('SMTP_PORT', '25'))
-    email_from = os.environ.get('EMAIL_FROM', 'certmanager@santahelena.pr.gov.br')
-    email_to = os.environ.get('EMAIL_TO', 'informatica@santahelena.pr.gov.br')
+    email_from = os.environ.get('EMAIL_FROM', '')
+    email_to = os.environ.get('EMAIL_TO', '')
+    org_name = os.environ.get('ORG_NAME', 'Cert Manager')
+    base_url = os.environ.get('BASE_URL', '')
 
     if not email_to:
         return
@@ -74,9 +78,9 @@ Data/hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 Servidores com falha:
 {chr(10).join(lines)}
 
-Acesse https://certmanager.santahelena.pr.gov.br para ver os logs completos.
+Acesse {base_url} para ver os logs completos.
 
--- Cert Manager | Prefeitura de Santa Helena / PR
+-- Cert Manager | {org_name}
 """
 
     try:
