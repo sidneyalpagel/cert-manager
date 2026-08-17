@@ -26,6 +26,7 @@
         <option value="web" {{ 'selected' if server and server.type == 'web' else '' }}>Web (Apache / Nginx)</option>
         <option value="zimbra" {{ 'selected' if server and server.type == 'zimbra' else '' }}>Zimbra</option>
         <option value="hestia" {{ 'selected' if server and server.type == 'hestia' else '' }}>Hestia CP</option>
+        <option value="pfsense" {{ 'selected' if server and server.type == 'pfsense' else '' }}>pfSense</option>
       </select>
     </div>
 
@@ -84,6 +85,13 @@ function toggleType(type) {
     certDest.title = 'Usuário do Hestia (ex: admin)';
     if (['\/opt\/certificados', '\/opt\/zimbra\/ssl\/letsencrypt'].includes(certDest.value) || certDest.value === '')
       certDest.value = 'admin';
+  } else if (type === 'pfsense') {
+    cmdGroup.style.opacity = '0.5';
+    postCmd.disabled = true;
+    certDest.placeholder = 'refid do certificado (ex: 68f63fb832b0f)';
+    certDest.title = 'Refid do certificado no pfSense';
+    if (['/opt/certificados', '/opt/zimbra/ssl/letsencrypt', 'admin'].includes(certDest.value))
+      certDest.value = '';
   } else {
     cmdGroup.style.opacity = '1';
     postCmd.disabled = false;

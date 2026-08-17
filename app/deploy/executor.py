@@ -460,6 +460,127 @@ echo "Hestia deploy OK"
     return True, '\n'.join(lines)
 
 
+def deploy_pfsense(server, settings):
+    """Deploy para pfSense: atualiza certificado no config.xml via PHP nativo."""
+    lines = []
+    hostname = server['hostname']
+    ssh_user = server['ssh_user']
+    ssh_port = server['ssh_port']
+    ssh_key = settings.get('ssh_key_path', '/root/.ssh/id_certbot')
+    # cert_dest_dir guarda o refid do certificado no pfSense
+    refid = (server['cert_dest_dir'] or '').strip()
+    cert_dir = os.path.join(
+        settings.get('cert_base_dir', '/etc/letsencrypt/live'),
+        settings.get('cert_domain', '')
+    )
+    timeout = int(settings.get('ssh_timeout', '30'))
+
+    ssh_opts = (
+        f'-i {ssh_key} -p {ssh_port} '
+        f'-o StrictHostKeyChecking=no '
+        f'-o ConnectTimeout={timeout}'
+    )
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Iniciando deploy pfSense em {hostname}')
+
+    if not refid:
+        lines.append('ERRO: informe o refid do certificado no campo "Diretório de certificados"')
+        return False, '\n'.join(lines)
+
+    # Ler os certificados localmente
+    try:
+        with open(os.path.join(cert_dir, 'fullchain.pem')) as f:
+            crt = f.read()
+        with open(os.path.join(cert_dir, 'privkey.pem')) as f:
+            key = f.read()
+    except Exception as e:
+        lines.append(f'ERRO ao ler certificados: {e}')
+        return False, '\n'.join(lines)
+
+    import base64
+    crt_b64 = base64.b64encode(crt.encode()).decode()
+    key_b64 = base64.b64encode(key.encode()).decode()
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Atualizando certificado refid={refid}')
+
+    # Script PHP que roda no pfSense
+    php_script = f"""
+require_once("config.inc");
+require_once("certs.inc");
+require_once("util.inc");
+require_once("captiveportal.inc");
+global $config;
+
+$refid = "{refid}";
+$found = false;
+
+foreach ($config["cert"] as $i => $c) {{
+    if ($c["refid"] == $refid) {{
+        $config["cert"][$i]["crt"] = "{crt_b64}";
+        $config["cert"][$i]["prv"] = "{key_b64}";
+        $found = true;
+        echo "Certificado '" . $c["descr"] . "' atualizado\\n";
+        break;
+    }}
+}}
+
+if (!$found) {{
+    echo "ERRO: refid nao encontrado\\n";
+    exit(1);
+}}
+
+write_config("Certificado atualizado via Cert Manager");
+echo "config.xml salvo\\n";
+
+// Reiniciar captive portal
+if (function_exists("captiveportal_configure")) {{
+    captiveportal_configure();
+    echo "Captive portal reconfigurado\\n";
+}}
+
+// Reiniciar webConfigurator se o cert for o da GUI
+if ($config["system"]["webgui"]["ssl-certref"] == $refid) {{
+    echo "Reiniciando webConfigurator...\\n";
+    mwexec_bg("/etc/rc.restart_webgui");
+}}
+
+echo "pfSense deploy OK\\n";
+"""
+
+    remote_cmd = (
+        f"ssh {ssh_opts} {ssh_user}@{hostname} "
+        f"'php -r \\'{php_script}\\''"
+    )
+
+    # Método mais seguro: enviar o script como arquivo e executar
+    import tempfile
+    with tempfile.NamedTemporaryFile('w', suffix='.php', delete=False) as tf:
+        tf.write('<?php\n' + php_script)
+        tmp_php = tf.name
+
+    scp_cmd = f'scp {ssh_opts} {tmp_php} {ssh_user}@{hostname}:/tmp/certmanager_deploy.php'
+    rc, out = run_cmd(scp_cmd, timeout=timeout)
+    if rc != 0:
+        lines.append(f'ERRO ao enviar script: {out}')
+        os.unlink(tmp_php)
+        return False, '\n'.join(lines)
+
+    exec_cmd = (
+        f'ssh {ssh_opts} {ssh_user}@{hostname} '
+        f'"php /tmp/certmanager_deploy.php; rm -f /tmp/certmanager_deploy.php"'
+    )
+    rc, out = run_cmd(exec_cmd, timeout=120)
+    lines.append(out.strip())
+    os.unlink(tmp_php)
+
+    if rc != 0 or 'ERRO' in out:
+        lines.append(f'[{datetime.now():%H:%M:%S}] ERRO no deploy pfSense (rc={rc})')
+        return False, '\n'.join(lines)
+
+    lines.append(f'[{datetime.now():%H:%M:%S}] Deploy pfSense concluído com sucesso')
+    return True, '\n'.join(lines)
+
+
 def test_ssh_connection(server, settings):
     """Testa conectividade SSH com um servidor."""
     hostname = server['hostname']
