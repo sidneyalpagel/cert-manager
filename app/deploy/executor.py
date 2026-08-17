@@ -294,10 +294,13 @@ echo "Distribuindo certificado wildcard para todos os usuários Hestia..."
 for USER_DIR in /home/*/; do
     USER=$(basename "$USER_DIR")
     WEB_CONF="/home/$USER/conf/web"
+    HESTIA_SSL="/usr/local/hestia/data/users/$USER/ssl"
 
     if [ ! -d "$WEB_CONF" ]; then
         continue
     fi
+
+    mkdir -p $HESTIA_SSL
 
     for DOM_DIR in $WEB_CONF/*/; do
         DOM=$(basename "$DOM_DIR")
@@ -316,8 +319,19 @@ for USER_DIR in /home/*/; do
         chmod 640 $SSL_DIR/$DOM.key 2>/dev/null || true
         chown $USER:$USER $SSL_DIR/$DOM.* 2>/dev/null || true
 
+        # Copiar também para o diretório data do Hestia
+        cp $SRC/cert.pem    $HESTIA_SSL/$DOM.crt  2>/dev/null || true
+        cp $SRC/privkey.pem $HESTIA_SSL/$DOM.key  2>/dev/null || true
+        cp $SRC/chain.pem   $HESTIA_SSL/$DOM.ca   2>/dev/null || true
+        cp $SRC/fullchain.pem $HESTIA_SSL/$DOM.pem 2>/dev/null || true
+
         UPDATED=$((UPDATED + 1))
     done
+
+    # Rebuild das configurações do Hestia para o usuário
+    if [ $UPDATED -gt 0 ] && command -v /usr/local/hestia/bin/v-rebuild-web-domains &>/dev/null; then
+        /usr/local/hestia/bin/v-rebuild-web-domains $USER yes 2>/dev/null || true
+    fi
 done
 
 # Atualizar certificado do próprio painel Hestia
