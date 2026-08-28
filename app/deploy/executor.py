@@ -295,41 +295,64 @@ for USER_DIR in /home/*/; do
     USER=$(basename "$USER_DIR")
     WEB_CONF="/home/$USER/conf/web"
     HESTIA_SSL="/usr/local/hestia/data/users/$USER/ssl"
+    USER_WEB_CONF="/usr/local/hestia/data/users/$USER/web.conf"
 
-    if [ ! -d "$WEB_CONF" ]; then
+    if [ ! -d "$WEB_CONF" ] || [ ! -f "$USER_WEB_CONF" ]; then
         continue
     fi
 
     mkdir -p $HESTIA_SSL
+    USER_CHANGED=0
 
-    for DOM_DIR in $WEB_CONF/*/; do
-        DOM=$(basename "$DOM_DIR")
+    # Varrer TODOS os domínios do usuário no web.conf (não só os que já têm ssl/)
+    for DOM in $(grep -o "DOMAIN='[^']*'" "$USER_WEB_CONF" | sed "s/DOMAIN='//;s/'//"); do
+        DOM_DIR="$WEB_CONF/$DOM"
         SSL_DIR="$DOM_DIR/ssl"
 
-        if [ ! -d "$SSL_DIR" ]; then
+        if [ ! -d "$DOM_DIR" ]; then
             continue
         fi
 
-        echo "  → $USER / $DOM"
+        # Verificar se o domínio está sob o wildcard deste certificado
+        # (aceita dominio.tld e *.dominio.tld)
+        case "$DOM" in
+            $DOMAIN|*.$DOMAIN) ;;
+            *) echo "  ⊘ $USER / $DOM (fora do wildcard $DOMAIN)"; continue ;;
+        esac
 
-        cp $SRC/cert.pem    $SSL_DIR/$DOM.crt  2>/dev/null || true
-        cp $SRC/privkey.pem $SSL_DIR/$DOM.key  2>/dev/null || true
-        cp $SRC/chain.pem   $SSL_DIR/$DOM.ca   2>/dev/null || true
-        cp $SRC/fullchain.pem $SSL_DIR/$DOM.pem 2>/dev/null || true
+        # Estado atual do SSL para este domínio
+        SSL_STATE=$(grep "DOMAIN='$DOM'" "$USER_WEB_CONF" | grep -o "SSL='[^']*'" | head -1 | sed "s/SSL='//;s/'//")
+
+        # Criar diretório ssl se não existir (domínio novo sem SSL)
+        mkdir -p $SSL_DIR
+
+        cp $SRC/cert.pem      $SSL_DIR/$DOM.crt  2>/dev/null || true
+        cp $SRC/privkey.pem   $SSL_DIR/$DOM.key  2>/dev/null || true
+        cp $SRC/chain.pem     $SSL_DIR/$DOM.ca   2>/dev/null || true
+        cp $SRC/fullchain.pem $SSL_DIR/$DOM.pem  2>/dev/null || true
         chmod 640 $SSL_DIR/$DOM.key 2>/dev/null || true
         chown $USER:$USER $SSL_DIR/$DOM.* 2>/dev/null || true
 
         # Copiar também para o diretório data do Hestia
-        cp $SRC/cert.pem    $HESTIA_SSL/$DOM.crt  2>/dev/null || true
-        cp $SRC/privkey.pem $HESTIA_SSL/$DOM.key  2>/dev/null || true
-        cp $SRC/chain.pem   $HESTIA_SSL/$DOM.ca   2>/dev/null || true
+        cp $SRC/cert.pem      $HESTIA_SSL/$DOM.crt 2>/dev/null || true
+        cp $SRC/privkey.pem   $HESTIA_SSL/$DOM.key 2>/dev/null || true
+        cp $SRC/chain.pem     $HESTIA_SSL/$DOM.ca  2>/dev/null || true
         cp $SRC/fullchain.pem $HESTIA_SSL/$DOM.pem 2>/dev/null || true
+
+        if [ "$SSL_STATE" = "yes" ]; then
+            echo "  → $USER / $DOM (certificado atualizado)"
+        else
+            # Domínio sem SSL — habilitar
+            sed -i "s|\\(DOMAIN='$DOM'.*\\)SSL='no'|\\1SSL='yes'|" "$USER_WEB_CONF"
+            echo "  ✚ $USER / $DOM (SSL HABILITADO)"
+            USER_CHANGED=1
+        fi
 
         UPDATED=$((UPDATED + 1))
     done
 
     # Rebuild das configurações do Hestia para o usuário
-    if [ $UPDATED -gt 0 ] && command -v /usr/local/hestia/bin/v-rebuild-web-domains &>/dev/null; then
+    if [ $UPDATED -gt 0 ] && [ -x /usr/local/hestia/bin/v-rebuild-web-domains ]; then
         /usr/local/hestia/bin/v-rebuild-web-domains $USER yes 2>/dev/null || true
     fi
 done
